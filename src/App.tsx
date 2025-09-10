@@ -21,8 +21,8 @@ export interface SensorData {
   rainfall: number;
   temperature: number;
   waterContent: number;
-  Rainfall_7d_avg?: number;
-  WaterContent_7d_avg?: number;
+  rainfall7dAvg?: number;
+  waterContent7dAvg?: number;
 }
 
 export interface Prediction {
@@ -32,8 +32,8 @@ export interface Prediction {
   rainfall: number;
   temperature: number;
   waterContent: number;
-  Rainfall_7d_avg?: number;
-  WaterContent_7d_avg?: number;
+  rainfall7dAvg?: number;
+  waterContent7dAvg?: number;
   riskLevel: 'low' | 'medium' | 'high';
   confidence?: number;
 }
@@ -105,8 +105,8 @@ const App: React.FC = () => {
         rainfall: parseFloat(data.rainfall.toFixed(2)),
         temperature: parseFloat(data.temperature.toFixed(2)),
         waterContent: parseFloat(data.waterContent.toFixed(2)),
-        Rainfall_7d_avg: data.Rainfall_7d_avg ? parseFloat(data.Rainfall_7d_avg.toFixed(2)) : undefined,
-        WaterContent_7d_avg: data.WaterContent_7d_avg ? parseFloat(data.WaterContent_7d_avg.toFixed(2)) : undefined,
+        rainfall7dAvg: data.rainfall7dAvg ? parseFloat(data.rainfall7dAvg.toFixed(2)) : undefined,
+        waterContent7dAvg: data.waterContent7dAvg ? parseFloat(data.waterContent7dAvg.toFixed(2)) : undefined,
         riskLevel: apiResult.riskLevel,
         confidence: parseFloat((apiResult.confidence || 0).toFixed(2))
       };
@@ -185,8 +185,8 @@ const App: React.FC = () => {
       rainfall: parseFloat(data.rainfall.toFixed(2)),
       temperature: parseFloat(data.temperature.toFixed(2)),
       waterContent: parseFloat(data.waterContent.toFixed(2)),
-      Rainfall_7d_avg: data.Rainfall_7d_avg ? parseFloat(data.Rainfall_7d_avg.toFixed(2)) : undefined,
-      WaterContent_7d_avg: data.WaterContent_7d_avg ? parseFloat(data.WaterContent_7d_avg.toFixed(2)) : undefined,
+      rainfall7dAvg: data.rainfall7dAvg ? parseFloat(data.rainfall7dAvg.toFixed(2)) : undefined,
+      waterContent7dAvg: data.waterContent7dAvg ? parseFloat(data.waterContent7dAvg.toFixed(2)) : undefined,
       riskLevel: getRiskLevel(finalIndex),
       confidence: 0.60 // Lower confidence for fallback
     };
@@ -195,9 +195,11 @@ const App: React.FC = () => {
   const loadForecast = async () => {
     try {
       const result = await apiService.getTimeSeriesForecast(90);
-      const forecastData: ForecastData[] = result.dates.map((date, index) => ({
-        date,
-        premiseIndex: parseFloat(result.predictions[index].toFixed(2))
+      // The new API response format has a `forecast` property which is an array of {date, premiseIndex} objects.
+      // This directly matches the `ForecastData[]` type used by the frontend state.
+      const forecastData: ForecastData[] = result.forecast.map(item => ({
+        ...item,
+        premiseIndex: parseFloat(item.premiseIndex.toFixed(2))
       }));
       setForecast(forecastData);
     } catch (error) {

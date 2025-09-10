@@ -5,8 +5,8 @@ export interface ModelPredictionRequest {
   rainfall: number;
   temperature: number;
   waterContent: number;
-  Rainfall_7d_avg?: number;
-  WaterContent_7d_avg?: number;
+  rainfall7dAvg?: number;
+  waterContent7dAvg?: number;
 }
 
 export interface ModelPredictionResponse {
@@ -17,8 +17,10 @@ export interface ModelPredictionResponse {
 }
 
 export interface TimeSeriesForecastResponse {
-  dates: string[];
-  predictions: number[];
+  forecast: {
+    date: string;
+    premiseIndex: number;
+  }[];
   confidence_intervals?: {
     lower: number[];
     upper: number[];
@@ -43,14 +45,14 @@ class APIService {
   }
 
   async predictPremiseIndex(data: ModelPredictionRequest): Promise<ModelPredictionResponse> {
-    // FIX: The backend expects snake_case keys. This maps the frontend's camelCase
-    // and PascalCase properties to the required snake_case format.
+    // The backend expects snake_case keys. This maps the frontend's camelCase
+    // properties to the required snake_case format.
     const payload = {
       temperature: data.temperature,
       rainfall: data.rainfall,
       water_content: data.waterContent,
-      rainfall_7d_avg: data.Rainfall_7d_avg,
-      watercontent_7d_avg: data.WaterContent_7d_avg,
+      rainfall_7d_avg: data.rainfall7dAvg,
+      watercontent_7d_avg: data.waterContent7dAvg,
     };
 
     return this.makeRequest<ModelPredictionResponse>('/api/predict', {

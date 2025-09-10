@@ -162,10 +162,10 @@ def forecast():
             # **FIX**: Use the current date for the forecast, not the end of the dataset
             next_date = start_date + timedelta(days=i)
             next_season_wet = get_season_wet_for_date(next_date)
-            
+
             prediction_reshaped = np.array([[scaled_prediction, 0]])
             final_prediction = ts_scaler.inverse_transform(prediction_reshaped)[0][0]
-            
+
             predictions.append({
                 'date': next_date.strftime('%Y-%m-%d'),
                 'premiseIndex': float(final_prediction)
@@ -193,4 +193,3 @@ if __name__ == '__main__':
     firebase_service.init_firebase()
     load_models()
     app.run(host='0.0.0.0', port=5000, debug=True)
-    
