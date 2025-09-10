@@ -6,54 +6,68 @@ import pickle
 import tensorflow as tf
 from datetime import datetime, timedelta
 import logging
-import os
 from pathlib import Path
 import firebase_service
 
+# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-CORS(app)
+CORS(app)  # Enable CORS for React frontend
 
-MODEL_DIR = Path(__file__).parent / 'models'
+# --- Correct model and resource paths ---
 RES_DIR = Path(__file__).parent / 'res'
 RF_MODEL_PATH = RES_DIR / 'random_forest_regression_model.pkl'
-TS_MODEL_PATH = RES_DIR / 'timeseries_model.keras'
+TS_MODEL_PATH = RES_DIR / 'timeseries_model.h5'
+TS_SCALER_PATH = RES_DIR / 'timeseries_scaler.pkl'
+DATASET_PATH = RES_DIR / 'mosquito_dataset_2017_2024.csv'
 
+
+# --- Global variables for models and scaler ---
 rf_model = None
 ts_model = None
+ts_scaler = None
 models_loaded = False
 
 def load_models():
-    global rf_model, ts_model, models_loaded
+    """Load the trained models and the scaler at startup."""
+    global rf_model, ts_model, ts_scaler, models_loaded
     
     try:
         if RF_MODEL_PATH.exists():
             with open(RF_MODEL_PATH, 'rb') as f:
                 rf_model = pickle.load(f)
-            logger.info("Random Forest model loaded successfully")
+            logger.info("✅ Random Forest model loaded successfully")
         else:
-            logger.warning(f"Random Forest model not found at {RF_MODEL_PATH}")
+            logger.warning(f"❌ Random Forest model not found at {RF_MODEL_PATH}")
         
         if TS_MODEL_PATH.exists():
             ts_model = tf.keras.models.load_model(str(TS_MODEL_PATH))
-            logger.info("Time Series model loaded successfully")
+            logger.info("✅ Time Series model loaded successfully")
         else:
-            logger.warning(f"Time Series model not found at {TS_MODEL_PATH}")
+            logger.warning(f"❌ Time Series model not found at {TS_MODEL_PATH}")
+
+        if TS_SCALER_PATH.exists():
+            with open(TS_SCALER_PATH, 'rb') as f:
+                ts_scaler = pickle.load(f)
+            logger.info("✅ Time Series scaler loaded successfully")
+        else:
+            logger.warning(f"❌ Time Series scaler not found at {TS_SCALER_PATH}")
         
-        models_loaded = rf_model is not None and ts_model is not None
+        models_loaded = all([rf_model, ts_model, ts_scaler])
         
         if models_loaded:
-            logger.info("All models loaded successfully")
+            logger.info("🚀 All models and scaler loaded successfully")
         else:
-            logger.error("Failed to load one or more models")
+            logger.error("🔥 Failed to load one or more models or the scaler")
             
     except Exception as e:
         logger.error(f"Error loading models: {str(e)}")
         models_loaded = False
 
 def get_risk_level(premise_index):
+    """Determine risk level based on premise index."""
     if premise_index < 30:
         return 'low'
     elif premise_index < 60:
@@ -61,8 +75,16 @@ def get_risk_level(premise_index):
     else:
         return 'high'
 
+def get_season_wet_for_date(date):
+    """
+    Determines if a date is in the wet season (May-Sept).
+    Returns 1 for Wet, 0 for Dry.
+    """
+    return 1 if 5 <= date.month <= 9 else 0
+
 @app.route('/api/health', methods=['GET'])
 def health_check():
+    """Health check endpoint."""
     return jsonify({
         'status': 'healthy' if models_loaded else 'unhealthy',
         'models_loaded': models_loaded,
@@ -71,16 +93,15 @@ def health_check():
 
 @app.route('/api/predict', methods=['POST'])
 def predict():
+    """Handles single-day predictions using the Random Forest model."""
     try:
         if not rf_model:
             return jsonify({'error': 'Random Forest model not loaded'}), 500
         
         data = request.get_json()
-        
         required_fields = ['temperature', 'rainfall', 'water_content', 'rainfall_7d_avg', 'watercontent_7d_avg']
-        for field in required_fields:
-            if field not in data:
-                return jsonify({'error': f'Missing required field: {field}'}), 400
+        if not all(field in data for field in required_fields):
+            return jsonify({'error': 'Missing one or more required fields'}), 400
         
         features = np.array([[
             float(data['temperature']),
@@ -91,117 +112,85 @@ def predict():
         ]])
         
         premise_index = rf_model.predict(features)[0]
-        
-        confidence = 0.85
-        if hasattr(rf_model, 'predict_proba'):
-            probabilities = rf_model.predict_proba(features)[0]
-            confidence = float(np.max(probabilities))
-        
         risk_level = get_risk_level(premise_index)
         
         response = {
             'premiseIndex': float(premise_index),
             'riskLevel': risk_level,
-            'confidence': confidence,
             'timestamp': datetime.now().isoformat()
         }
         
         try:
-            prediction_data = {
-                'id': response['timestamp'],
-                'timestamp': response['timestamp'],
-                'premiseIndex': response['premiseIndex'],
-                'rainfall': float(data['rainfall']),
-                'temperature': float(data['temperature']),
-                'water_content': float(data['water_content']),
-                'rainfall_7d_avg': float(data['rainfall_7d_avg']),
-                'watercontent_7d_avg': float(data['watercontent_7d_avg']),
-                'riskLevel': response['riskLevel'],
-                'confidence': response['confidence']
-            }
+            prediction_data = {**data, **response, 'id': response['timestamp']}
             firebase_service.save_prediction(prediction_data)
-        except Exception as firebase_error:
-            logger.error(f"Failed to save to Firebase: {firebase_error}")
+        except Exception as fb_error:
+            logger.error(f"Failed to save prediction to Firebase: {fb_error}")
         
         logger.info(f"Prediction made: {premise_index:.2f}% ({risk_level} risk)")
         return jsonify(response)
         
     except Exception as e:
         logger.error(f"Prediction error: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'An unexpected error occurred during prediction.'}), 500
 
 @app.route('/api/forecast', methods=['GET'])
 def forecast():
+    """Handles multi-day forecasting using the Time Series model autoregressively."""
     try:
-        if not ts_model or not rf_model:
-            logger.error("Forecast error: One or more models are not loaded.")
-            return jsonify({'error': 'One or more models are not loaded. Check server logs.'}), 500
+        if not ts_model or not ts_scaler:
+            return jsonify({'error': 'Time Series model or scaler not loaded'}), 500
 
-        days_str = request.args.get('days', '90')
-        days = int(days_str)
+        days_to_forecast = int(request.args.get('days', '42'))
         
-        df = pd.read_csv(RES_DIR / 'mosquito_dataset_2017_2024.csv', parse_dates=['Date'])
+        df = pd.read_csv(DATASET_PATH, parse_dates=['Date'], index_col='Date')
+        df_encoded = pd.get_dummies(df, columns=['Season'], drop_first=True)
+        features_df = df_encoded[['PremiseIndex', 'Season_Wet']]
         
-        features_ts = ['Temperature', 'Rainfall']
-        historical_data = df[features_ts].values
+        last_60_days = features_df.tail(60)
+        # **FIX**: Start the forecast date from the current system time
+        start_date = datetime.now()
         
-        last_60_days = historical_data[-60:]
-        input_sequence = np.array([last_60_days])
+        current_sequence_scaled = ts_scaler.transform(last_60_days)
+        
+        predictions = []
 
-        predicted_weather = ts_model.predict(input_sequence)
-        predicted_weather = predicted_weather.squeeze()
-
-        historical_full_features = df[['Temperature', 'Rainfall', 'WaterContent']].tail(7)
-        final_premise_index_forecast = []
-
-        for i in range(days):
-            pred_temp = predicted_weather[i, 0]
-            pred_rain = predicted_weather[i, 1]
-            pred_wc = pred_rain * 3.5
-
-            today_features = pd.DataFrame({
-                'Temperature': [pred_temp],
-                'Rainfall': [pred_rain],
-                'WaterContent': [pred_wc]
-            })
-
-            updated_history = pd.concat([historical_full_features, today_features], ignore_index=True)
+        for i in range(days_to_forecast):
+            input_for_model = np.reshape(current_sequence_scaled, (1, 60, 2))
             
-            rainfall_7d_avg = updated_history['Rainfall'].rolling(window=7).mean().iloc[-1]
-            watercontent_7d_avg = updated_history['WaterContent'].rolling(window=7).mean().iloc[-1]
+            scaled_prediction = ts_model.predict(input_for_model, verbose=0)[0][0]
+            
+            # **FIX**: Use the current date for the forecast, not the end of the dataset
+            next_date = start_date + timedelta(days=i)
+            next_season_wet = get_season_wet_for_date(next_date)
+            
+            prediction_reshaped = np.array([[scaled_prediction, 0]])
+            final_prediction = ts_scaler.inverse_transform(prediction_reshaped)[0][0]
+            
+            predictions.append({
+                'date': next_date.strftime('%Y-%m-%d'),
+                'premiseIndex': float(final_prediction)
+            })
+            
+            new_scaled_point = np.array([[scaled_prediction, next_season_wet]])
+            current_sequence_scaled = np.append(current_sequence_scaled[1:], new_scaled_point, axis=0)
 
-            rf_input = np.array([[
-                pred_temp,
-                pred_rain,
-                pred_wc,
-                rainfall_7d_avg,
-                watercontent_7d_avg
-            ]])
-
-            premise_index_pred = rf_model.predict(rf_input)
-            final_premise_index_forecast.append(premise_index_pred[0])
-
-            historical_full_features = updated_history.iloc[1:]
-
-        dates = [(datetime.now() + timedelta(days=i)).strftime('%Y-%m-%d') for i in range(days)]
-        
         response = {
-            'dates': dates,
-            'predictions': [float(p) for p in final_premise_index_forecast],
+            'forecast': predictions,
             'confidence_intervals': {
-                'lower': [max(0, float(p) - 10) for p in final_premise_index_forecast],
-                'upper': [min(100, float(p) + 10) for p in final_premise_index_forecast]
+                'lower': [max(0, p['premiseIndex'] - 10) for p in predictions],
+                'upper': [min(100, p['premiseIndex'] + 10) for p in predictions]
             }
         }
         
-        logger.info(f"Forecast generated for {days} days")
+        logger.info(f"Forecast generated for {days_to_forecast} days")
         return jsonify(response)
         
     except Exception as e:
         logger.error(f"Forecast error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'An unexpected error occurred during forecasting.'}), 500
 
 if __name__ == '__main__':
     firebase_service.init_firebase()
     load_models()
     app.run(host='0.0.0.0', port=5000, debug=True)
+    
