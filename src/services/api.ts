@@ -43,9 +43,19 @@ class APIService {
   }
 
   async predictPremiseIndex(data: ModelPredictionRequest): Promise<ModelPredictionResponse> {
+    // FIX: The backend expects snake_case keys. This maps the frontend's camelCase
+    // and PascalCase properties to the required snake_case format.
+    const payload = {
+      temperature: data.temperature,
+      rainfall: data.rainfall,
+      water_content: data.waterContent,
+      rainfall_7d_avg: data.Rainfall_7d_avg,
+      watercontent_7d_avg: data.WaterContent_7d_avg,
+    };
+
     return this.makeRequest<ModelPredictionResponse>('/api/predict', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
     });
   }
 
