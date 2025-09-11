@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 CORS(app)  # Enable CORS for React frontend
 
-# --- Correct model and resource paths ---
+# --- model and resource paths ---
 RES_DIR = Path(__file__).parent / 'res'
 RF_MODEL_PATH = RES_DIR / 'random_forest_regression_model.pkl'
 TS_MODEL_PATH = RES_DIR / 'timeseries_model.h5'
