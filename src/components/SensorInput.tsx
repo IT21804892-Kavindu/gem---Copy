@@ -233,8 +233,8 @@ const SensorInput: React.FC<SensorInputProps> = ({ onSubmit, isLoading }) => {
     rainfall: 0,
     temperature: 25,
     waterContent: 0,
-    Rainfall_7d_avg: 0,
-    WaterContent_7d_avg: 0,
+    rainfall7dAvg: 0,
+    waterContent7dAvg: 0,
   });
 
   const [errors, setErrors] = useState<Partial<SensorData>>({});
@@ -255,12 +255,12 @@ const SensorInput: React.FC<SensorInputProps> = ({ onSubmit, isLoading }) => {
     }
 
     // Always validate the 7-day average fields
-    if (formData.Rainfall_7d_avg === undefined || formData.Rainfall_7d_avg < 0 || formData.Rainfall_7d_avg > 500) {
-        newErrors.Rainfall_7d_avg = formData.Rainfall_7d_avg;
+    if (formData.rainfall7dAvg === undefined || formData.rainfall7dAvg < 0 || formData.rainfall7dAvg > 500) {
+        newErrors.rainfall7dAvg = formData.rainfall7dAvg;
     }
 
-    if (formData.WaterContent_7d_avg === undefined || formData.WaterContent_7d_avg < 0 || formData.WaterContent_7d_avg > 100) {
-        newErrors.WaterContent_7d_avg = formData.WaterContent_7d_avg;
+    if (formData.waterContent7dAvg === undefined || formData.waterContent7dAvg < 0 || formData.waterContent7dAvg > 100) {
+        newErrors.waterContent7dAvg = formData.waterContent7dAvg;
     }
 
     setErrors(newErrors);
@@ -370,14 +370,14 @@ const SensorInput: React.FC<SensorInputProps> = ({ onSubmit, isLoading }) => {
             step="0.1"
             min="0"
             max="500"
-            value={formData.Rainfall_7d_avg}
-            onChange={(e) => handleInputChange('Rainfall_7d_avg', parseFloat(e.target.value) || 0)}
+            value={formData.rainfall7dAvg}
+            onChange={(e) => handleInputChange('rainfall7dAvg', parseFloat(e.target.value) || 0)}
             className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
-              errors.Rainfall_7d_avg !== undefined ? 'border-red-500 bg-red-50' : 'border-gray-300'
+              errors.rainfall7dAvg !== undefined ? 'border-red-500 bg-red-50' : 'border-gray-300'
             }`}
             placeholder="Enter 7-day average rainfall..."
           />
-          {errors.Rainfall_7d_avg !== undefined && (
+          {errors.rainfall7dAvg !== undefined && (
             <p className="text-red-500 text-sm mt-1">Rainfall must be between 0-500mm</p>
           )}
         </div>
@@ -393,14 +393,14 @@ const SensorInput: React.FC<SensorInputProps> = ({ onSubmit, isLoading }) => {
             step="0.1"
             min="0"
             max="100"
-            value={formData.WaterContent_7d_avg}
-            onChange={(e) => handleInputChange('WaterContent_7d_avg', parseFloat(e.target.value) || 0)}
+            value={formData.waterContent7dAvg}
+            onChange={(e) => handleInputChange('waterContent7dAvg', parseFloat(e.target.value) || 0)}
             className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all ${
-              errors.WaterContent_7d_avg !== undefined ? 'border-red-500 bg-red-50' : 'border-gray-300'
+              errors.waterContent7dAvg !== undefined ? 'border-red-500 bg-red-50' : 'border-gray-300'
             }`}
             placeholder="Enter 7-day average water content..."
           />
-          {errors.WaterContent_7d_avg !== undefined && (
+          {errors.waterContent7dAvg !== undefined && (
             <p className="text-red-500 text-sm mt-1">Water content must be between 0-100</p>
           )}
         </div>
