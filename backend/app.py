@@ -16,26 +16,23 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 CORS(app)  # Enable CORS for React frontend
 
-
-# --- model and resource paths ---
-
+# --- Correct model and resource paths ---
 RES_DIR = Path(__file__).parent / 'res'
 RF_MODEL_PATH = RES_DIR / 'random_forest_regression_model.pkl'
 TS_MODEL_PATH = RES_DIR / 'timeseries_model.h5'
 TS_SCALER_PATH = RES_DIR / 'timeseries_scaler.pkl'
 DATASET_PATH = RES_DIR / 'mosquito_dataset_2017_2024.csv'
 
+
 # --- Global variables for models and scaler ---
 rf_model = None
 ts_model = None
 ts_scaler = None
 models_loaded = False
-model_loading_error = None
 
 def load_models():
     """Load the trained models and the scaler at startup."""
-    global rf_model, ts_model, ts_scaler, models_loaded, model_loading_error
-
+    global rf_model, ts_model, ts_scaler, models_loaded
     
     try:
         if RF_MODEL_PATH.exists():
@@ -66,8 +63,7 @@ def load_models():
             logger.error("🔥 Failed to load one or more models or the scaler")
             
     except Exception as e:
-        model_loading_error = str(e)
-        logger.error(f"Error loading models: {model_loading_error}")
+        logger.error(f"Error loading models: {str(e)}")
         models_loaded = False
 
 def get_risk_level(premise_index):
@@ -89,18 +85,11 @@ def get_season_wet_for_date(date):
 @app.route('/api/health', methods=['GET'])
 def health_check():
     """Health check endpoint."""
-
-    response = {
+    return jsonify({
         'status': 'healthy' if models_loaded else 'unhealthy',
         'models_loaded': models_loaded,
-        'rf_model_loaded': rf_model is not None,
-        'ts_model_loaded': ts_model is not None,
-        'ts_scaler_loaded': ts_scaler is not None,
         'timestamp': datetime.now().isoformat()
-    }
-    if model_loading_error:
-        response['error'] = model_loading_error
-    return jsonify(response)
+    })
 
 @app.route('/api/predict', methods=['POST'])
 def predict():
@@ -200,7 +189,6 @@ def forecast():
         logger.error(f"Forecast error: {e}", exc_info=True)
         return jsonify({'error': 'An unexpected error occurred during forecasting.'}), 500
 
-
 @app.route('/api/predictions/clear', methods=['POST'])
 def clear_predictions():
     """Endpoint to clear all prediction history from the database."""
@@ -210,7 +198,6 @@ def clear_predictions():
     except Exception as e:
         logger.error(f"Failed to clear predictions: {e}", exc_info=True)
         return jsonify({'error': 'An unexpected error occurred while clearing predictions.'}), 500
-
 
 if __name__ == '__main__':
     firebase_service.init_firebase()
