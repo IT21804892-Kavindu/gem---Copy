@@ -206,3 +206,35 @@ def get_last_30_days_predictions():
     except Exception as e:
         logger.error(f"Error fetching 30-day predictions: {e}")
         return []
+
+def clear_all_predictions():
+    """Deletes all documents from the 'predictions' collection."""
+    if not db:
+        logger.error("Error clearing predictions: Firebase not initialized.")
+        raise Exception("Firebase not initialized.")
+
+    try:
+        collection_ref = db.collection('predictions')
+        docs = collection_ref.stream()
+        deleted_count = 0
+
+        # Firestore batch can handle up to 500 operations
+        batch = db.batch()
+        for doc in docs:
+            batch.delete(doc.reference)
+            deleted_count += 1
+            # Commit the batch every 500 deletes
+            if deleted_count % 500 == 0:
+                batch.commit()
+                batch = db.batch() # Start a new batch
+
+        # Commit any remaining deletes
+        if deleted_count % 500 != 0:
+            batch.commit()
+
+        logger.info(f"Successfully deleted {deleted_count} predictions.")
+        return deleted_count
+
+    except Exception as e:
+        logger.error(f"Error clearing predictions: {e}")
+        raise e

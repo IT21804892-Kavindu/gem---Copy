@@ -51,7 +51,6 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [alerts, setAlerts] = useState<string[]>([]);
   const [backendStatus, setBackendStatus] = useState<'connected' | 'disconnected' | 'checking'>('checking');
-  const [isSavingToDb, setIsSavingToDb] = useState(false);
 
   useEffect(() => {
     loadInitialData();
@@ -91,17 +90,19 @@ const App: React.FC = () => {
 
   const handlePrediction = async (data: SensorData) => {
     setIsLoading(true);
-    setIsSavingToDb(true);
     
     try {
-      // Try to get prediction from backend
+      // Get prediction from backend (which now also saves to the database)
       const apiResult = await apiService.getPrediction(data);
       
-      // Convert API response to Prediction format
+      // Create a prediction object for immediate display
       const prediction: Prediction = {
-        id: Date.now().toString(),
-        timestamp: new Date().toLocaleString(),
+        id: apiResult.timestamp, // Use timestamp from backend as a unique ID
+        timestamp: new Date(apiResult.timestamp).toLocaleString(),
         premiseIndex: parseFloat(apiResult.premiseIndex.toFixed(2)),
+        riskLevel: apiResult.riskLevel,
+        confidence: parseFloat((apiResult.confidence || 0).toFixed(2)),
+        // Add sensor data to the object for completeness
         rainfall: parseFloat(data.rainfall.toFixed(2)),
         temperature: parseFloat(data.temperature.toFixed(2)),
         waterContent: parseFloat(data.waterContent.toFixed(2)),
@@ -109,31 +110,19 @@ const App: React.FC = () => {
         waterContent7dAvg: data.waterContent7dAvg ? parseFloat(data.waterContent7dAvg.toFixed(2)) : undefined,
         riskLevel: apiResult.riskLevel,
         confidence: parseFloat((apiResult.confidence || 0).toFixed(2))
+
       };
       
       setCurrentPrediction(prediction);
-      const newPredictions = [prediction, ...predictions];
-      setPredictions(newPredictions);
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const filtered = newPredictions.filter(p => new Date(p.timestamp) >= thirtyDaysAgo);
-      setDisplayPredictions(filtered);
-      
-      // Save to database
-      try {
-        await databaseService.savePrediction(prediction);
-        setIsSavingToDb(false);
-      } catch (dbError) {
-        console.error('Database save error:', dbError);
-        setAlerts(prev => ['Failed to save to database', ...prev.slice(0, 4)]);
-        setIsSavingToDb(false);
-      }
       
       // Generate alert if high risk
       if (prediction.riskLevel === 'high') {
         const alertMessage = `High breeding risk detected! Premise Index: ${prediction.premiseIndex}% (Confidence: ${((prediction.confidence || 0) * 100).toFixed(1)}%)`;
         setAlerts(prev => [alertMessage, ...prev.slice(0, 4)]);
       }
+
+      // Refresh the entire history from the database to include the new prediction
+      await loadInitialData();
       
     } catch (error) {
       console.error('Prediction error:', error);
@@ -232,13 +221,16 @@ const App: React.FC = () => {
 
   const handleReportGenerated = async () => {
     try {
-      await databaseService.clearAllPredictions();
+      // This action is now handled by the backend
+      await apiService.clearPredictionHistory();
+
+      // Clear local state after backend confirms success
       setPredictions([]);
       setDisplayPredictions([]);
       setCurrentPrediction(null);
       setAlerts(prev => ['Prediction history cleared.', ...prev.slice(0, 4)]);
     } catch (error) {
-      console.error('Error clearing data after report generation:', error);
+      console.error('Error clearing data via API:', error);
       setAlerts((prev: string[]) => ['Failed to clear prediction history.', ...prev.slice(0, 4)]);
     }
   };
@@ -281,13 +273,6 @@ const App: React.FC = () => {
                'Checking Connection...'}
             </div>
             
-            {/* Database Status */}
-            {isSavingToDb && (
-              <div className="ml-3 flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800">
-                <div className="w-2 h-2 rounded-full mr-2 bg-blue-600 animate-pulse"></div>
-                Saving to Database...
-              </div>
-            )}
           </div>
           
           {/* Report Generation Button */}

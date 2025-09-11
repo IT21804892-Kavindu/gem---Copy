@@ -16,13 +16,14 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 CORS(app)  # Enable CORS for React frontend
 
+
 # --- model and resource paths ---
+
 RES_DIR = Path(__file__).parent / 'res'
 RF_MODEL_PATH = RES_DIR / 'random_forest_regression_model.pkl'
 TS_MODEL_PATH = RES_DIR / 'timeseries_model.h5'
 TS_SCALER_PATH = RES_DIR / 'timeseries_scaler.pkl'
 DATASET_PATH = RES_DIR / 'mosquito_dataset_2017_2024.csv'
-
 
 # --- Global variables for models and scaler ---
 rf_model = None
@@ -34,6 +35,7 @@ model_loading_error = None
 def load_models():
     """Load the trained models and the scaler at startup."""
     global rf_model, ts_model, ts_scaler, models_loaded, model_loading_error
+
     
     try:
         if RF_MODEL_PATH.exists():
@@ -87,6 +89,7 @@ def get_season_wet_for_date(date):
 @app.route('/api/health', methods=['GET'])
 def health_check():
     """Health check endpoint."""
+
     response = {
         'status': 'healthy' if models_loaded else 'unhealthy',
         'models_loaded': models_loaded,
@@ -196,6 +199,18 @@ def forecast():
     except Exception as e:
         logger.error(f"Forecast error: {e}", exc_info=True)
         return jsonify({'error': 'An unexpected error occurred during forecasting.'}), 500
+
+
+@app.route('/api/predictions/clear', methods=['POST'])
+def clear_predictions():
+    """Endpoint to clear all prediction history from the database."""
+    try:
+        deleted_count = firebase_service.clear_all_predictions()
+        return jsonify({'message': f'Successfully deleted {deleted_count} predictions.'}), 200
+    except Exception as e:
+        logger.error(f"Failed to clear predictions: {e}", exc_info=True)
+        return jsonify({'error': 'An unexpected error occurred while clearing predictions.'}), 500
+
 
 if __name__ == '__main__':
     firebase_service.init_firebase()

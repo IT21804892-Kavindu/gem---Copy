@@ -68,6 +68,12 @@ class APIService {
   async getModelHealth(): Promise<{ status: string; models_loaded: boolean }> {
     return this.makeRequest<{ status: string; models_loaded: boolean }>('/api/health');
   }
+
+  async clearPredictionHistory(): Promise<{ message: string }> {
+    return this.makeRequest<{ message: string }>('/api/predictions/clear', {
+      method: 'POST',
+    });
+  }
 }
 
 export const apiService = new APIService();
