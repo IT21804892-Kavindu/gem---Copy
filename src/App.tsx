@@ -108,9 +108,6 @@ const App: React.FC = () => {
         waterContent: parseFloat(data.waterContent.toFixed(2)),
         rainfall7dAvg: data.rainfall7dAvg ? parseFloat(data.rainfall7dAvg.toFixed(2)) : undefined,
         waterContent7dAvg: data.waterContent7dAvg ? parseFloat(data.waterContent7dAvg.toFixed(2)) : undefined,
-        riskLevel: apiResult.riskLevel,
-        confidence: parseFloat((apiResult.confidence || 0).toFixed(2))
-
       };
       
       setCurrentPrediction(prediction);
