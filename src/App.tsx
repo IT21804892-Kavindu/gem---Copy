@@ -303,7 +303,7 @@ const App: React.FC = () => {
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           {/* History Chart */}
-          <div className="bg-white rounded-xl shadow-lg p-6">
+          <div className="bg-white rounded-xl shadow-lg p-6 flex flex-col">
             <div className="flex items-center mb-6">
               <TrendingUp className="w-6 h-6 text-blue-600 mr-3" />
               <h2 className="text-2xl font-semibold text-gray-800">Prediction History (Last 30 Days)</h2>
@@ -312,7 +312,7 @@ const App: React.FC = () => {
           </div>
 
           {/* Forecast Chart */}
-          <div className="bg-white rounded-xl shadow-lg p-6">
+          <div className="bg-white rounded-xl shadow-lg p-6 flex flex-col">
             <div className="flex items-center mb-6">
               <Calendar className="w-6 h-6 text-indigo-600 mr-3" />
               <h2 className="text-2xl font-semibold text-gray-800">Predicted Forecast</h2>
