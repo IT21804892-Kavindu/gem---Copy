@@ -198,6 +198,6 @@ def forecast():
         return jsonify({'error': 'An unexpected error occurred during forecasting.'}), 500
 
 if __name__ == '__main__':
-    # firebase_service.init_firebase() # Temporarily disabled for verification
+    firebase_service.init_firebase()
     load_models()
     app.run(host='0.0.0.0', port=5000, debug=True)
