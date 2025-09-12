@@ -729,16 +729,6 @@ def forecast():
         logger.error(f"Forecast error: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/predictions/clear', methods=['POST'])
-def clear_predictions():
-    """Clears all predictions from the database."""
-    try:
-        deleted_count = firebase_service.clear_all_predictions()
-        return jsonify({'message': f'Successfully deleted {deleted_count} predictions.'}), 200
-    except Exception as e:
-        logger.error(f"Error clearing predictions: {e}", exc_info=True)
-        return jsonify({'error': 'An unexpected error occurred during prediction clearing.'}), 500
-
 if __name__ == '__main__':
     firebase_service.init_firebase()
     load_models()
