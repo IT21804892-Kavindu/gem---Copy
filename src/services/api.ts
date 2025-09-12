@@ -73,6 +73,12 @@ export class APIServiceExtended extends APIService {
   async getTimeSeriesForecast(days: number = 90): Promise<TimeSeriesForecastResponse> {
     return this.makeRequest<TimeSeriesForecastResponse>(`/api/forecast?days=${days}`);
   }
+
+  async clearAllPredictions(): Promise<{ message: string }> {
+    return this.makeRequest<{ message: string }>('/api/predictions/clear', {
+      method: 'POST',
+    });
+  }
 }
 
 // Export extended service instance
