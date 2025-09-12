@@ -206,3 +206,24 @@ def get_last_30_days_predictions():
     except Exception as e:
         logger.error(f"Error fetching 30-day predictions: {e}")
         return []
+
+def clear_all_predictions():
+    """Deletes all documents from the 'predictions' collection."""
+    if not db:
+        logger.error("Error clearing predictions: Firebase not initialized.")
+        raise Exception("Firebase not initialized. Call init_firebase() first.")
+
+    try:
+        collection_ref = db.collection('predictions')
+        docs = collection_ref.stream()
+        deleted_count = 0
+        for doc in docs:
+            doc.reference.delete()
+            deleted_count += 1
+
+        logger.info(f"Successfully deleted {deleted_count} predictions.")
+        return deleted_count
+
+    except Exception as e:
+        logger.error(f"Error clearing predictions: {e}")
+        raise e

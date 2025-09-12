@@ -232,11 +232,11 @@ const App: React.FC = () => {
 
   const handleReportGenerated = async () => {
     try {
-      await databaseService.clearAllPredictions();
+      await apiService.clearAllPredictions(); // Changed to use the backend API
       setPredictions([]);
       setDisplayPredictions([]);
       setCurrentPrediction(null);
-      setAlerts(prev => ['Prediction history cleared.', ...prev.slice(0, 4)]);
+      setAlerts(prev => ['Prediction history cleared successfully via backend.', ...prev.slice(0, 4)]);
     } catch (error) {
       console.error('Error clearing data after report generation:', error);
       setAlerts((prev: string[]) => ['Failed to clear prediction history.', ...prev.slice(0, 4)]);

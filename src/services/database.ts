@@ -83,21 +83,6 @@ class DatabaseService {
     }
   }
 
-  async clearAllPredictions(): Promise<void> {
-    try {
-      const querySnapshot = await getDocs(collection(db, this.collectionName));
-      const deletePromises = querySnapshot.docs.map(document =>
-        deleteDoc(doc(db, this.collectionName, document.id))
-      );
-
-      await Promise.all(deletePromises);
-      console.log('All predictions cleared from Firebase');
-    } catch (error) {
-      console.error('Error clearing predictions:', error);
-      throw error;
-    }
-  }
-
   async getLatestPrediction(): Promise<Prediction | null> {
     try {
       const q = query(
