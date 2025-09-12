@@ -257,8 +257,8 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ predictions }) => {
               </div>
             </div>
             <div className="text-right text-sm text-gray-600">
-              <p>{prediction.temperature}°C</p>
-              <p>{prediction.rainfall}mm</p>
+              <p>{prediction.sensorData.temperature}°C</p>
+              <p>{prediction.sensorData.rainfall}mm</p>
             </div>
           </div>
         ))}
