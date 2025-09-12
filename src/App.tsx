@@ -23,12 +23,14 @@ export interface SensorData {
   waterContent: number;
   rainfall7dAvg: number;
   waterContent7dAvg: number;
+
 }
 
 export interface Prediction {
   id: string;
   timestamp: string;
   premiseIndex: number;
+
   riskLevel: 'low' | 'medium' | 'high';
   confidence?: number;
   // Include all sensor data for historical record
@@ -99,6 +101,7 @@ const App: React.FC = () => {
         id: Date.now().toString(),
         timestamp: new Date().toLocaleString(),
         premiseIndex: parseFloat(apiResult.premiseIndex.toFixed(2)),
+
         riskLevel: apiResult.riskLevel,
         confidence: parseFloat((apiResult.confidence || 0).toFixed(2)),
         sensorData: data
@@ -111,7 +114,7 @@ const App: React.FC = () => {
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       const filtered = newPredictions.filter(p => new Date(p.timestamp) >= thirtyDaysAgo);
       setDisplayPredictions(filtered);
-      
+
       // Save to database
       try {
         await databaseService.savePrediction(prediction);
@@ -161,6 +164,7 @@ const App: React.FC = () => {
       id: Date.now().toString(),
       timestamp: new Date().toLocaleString(),
       premiseIndex: parseFloat(finalIndex.toFixed(2)),
+
       riskLevel: getRiskLevel(finalIndex),
       confidence: 0.50, // Lower confidence for fallback
       sensorData: data
@@ -170,11 +174,9 @@ const App: React.FC = () => {
   const loadForecast = async () => {
     try {
       const result = await apiService.getTimeSeriesForecast(90);
-      // The new API response format has a `forecast` property which is an array of {date, premiseIndex} objects.
-      // This directly matches the `ForecastData[]` type used by the frontend state.
-      const forecastData: ForecastData[] = result.forecast.map(item => ({
-        ...item,
-        premiseIndex: parseFloat(item.premiseIndex.toFixed(2))
+      const forecastData: ForecastData[] = result.dates.map((date, index) => ({
+        date,
+        premiseIndex: parseFloat(result.predictions[index].toFixed(2))
       }));
       setForecast(forecastData);
     } catch (error) {
@@ -296,7 +298,7 @@ const App: React.FC = () => {
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           {/* History Chart */}
-          <div className="bg-white rounded-xl shadow-lg p-6">
+          <div className="bg-white rounded-xl shadow-lg p-6 flex flex-col">
             <div className="flex items-center mb-6">
               <TrendingUp className="w-6 h-6 text-blue-600 mr-3" />
               <h2 className="text-2xl font-semibold text-gray-800">Prediction History (Last 30 Days)</h2>
@@ -305,7 +307,7 @@ const App: React.FC = () => {
           </div>
 
           {/* Forecast Chart */}
-          <div className="bg-white rounded-xl shadow-lg p-6">
+          <div className="bg-white rounded-xl shadow-lg p-6 flex flex-col">
             <div className="flex items-center mb-6">
               <Calendar className="w-6 h-6 text-indigo-600 mr-3" />
               <h2 className="text-2xl font-semibold text-gray-800">Predicted Forecast</h2>
