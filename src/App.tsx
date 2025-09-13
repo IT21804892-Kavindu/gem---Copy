@@ -58,19 +58,41 @@ const App: React.FC = () => {
 
   const loadInitialData = async () => {
     try {
-      const allPredictions = await databaseService.getAllPredictions();
-      setPredictions(allPredictions);
+      const rawPredictions = await databaseService.getAllPredictions();
+
+      const migratedPredictions = rawPredictions.map((p: any): Prediction => {
+        // If sensorData property doesn't exist, it's an old record
+        if (!p.sensorData) {
+          return {
+            id: p.id,
+            timestamp: p.timestamp,
+            premiseIndex: p.premiseIndex,
+            riskLevel: p.riskLevel,
+            confidence: p.confidence,
+            sensorData: {
+              rainfall: p.rainfall,
+              temperature: p.temperature,
+              waterContent: p.waterContent,
+              rainfall7dAvg: p.rainfall7dAvg || 0, // Default to 0 if missing
+              waterContent7dAvg: p.waterContent7dAvg || 0, // Default to 0 if missing
+            }
+          };
+        }
+        return p as Prediction;
+      });
+
+      setPredictions(migratedPredictions);
 
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-      const filtered = allPredictions.filter(prediction => {
+      const filtered = migratedPredictions.filter(prediction => {
         const predictionDate = new Date(prediction.timestamp);
         return predictionDate >= thirtyDaysAgo;
       });
 
       setDisplayPredictions(filtered);
-      console.log(`Loaded ${allPredictions.length} predictions from Firebase`);
+      console.log(`Loaded and migrated ${migratedPredictions.length} predictions from Firebase`);
     } catch (error) {
       console.error('Error loading initial data:', error);
     }
