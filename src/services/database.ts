@@ -38,8 +38,7 @@ class DatabaseService {
           premiseIndex: data.premiseIndex,
           riskLevel: data.riskLevel,
           confidence: data.confidence,
-          sensorData: data.sensorData,
-          createdAt: data.createdAt?.toDate()
+          sensorData: data.sensorData
         } as Prediction;
       });
     } catch (error) {
@@ -70,8 +69,7 @@ class DatabaseService {
           premiseIndex: data.premiseIndex,
           riskLevel: data.riskLevel,
           confidence: data.confidence,
-          sensorData: data.sensorData,
-          createdAt: data.createdAt?.toDate?.() || new Date()
+          sensorData: data.sensorData
         } as Prediction;
       });
     } catch (error) {
@@ -117,8 +115,7 @@ class DatabaseService {
         premiseIndex: data.premiseIndex,
         riskLevel: data.riskLevel,
         confidence: data.confidence,
-        sensorData: data.sensorData,
-        createdAt: data.createdAt?.toDate?.() || new Date()
+        sensorData: data.sensorData
       } as Prediction;
     } catch (error) {
       console.error('Error fetching latest prediction:', error);
