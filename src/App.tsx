@@ -21,18 +21,21 @@ export interface SensorData {
   rainfall: number;
   temperature: number;
   waterContent: number;
-  rainfall7dAvg: number;
-  waterContent7dAvg: number;
+  rainfall7dAvg?: number;
+  waterContent7dAvg?: number;
 }
 
 export interface Prediction {
   id: string;
   timestamp: string;
   premiseIndex: number;
+  rainfall: number;
+  temperature: number;
+  waterContent: number;
+  rainfall7dAvg?: number;
+  waterContent7dAvg?: number;
   riskLevel: 'low' | 'medium' | 'high';
   confidence?: number;
-  // Include all sensor data for historical record
-  sensorData: SensorData;
 }
 
 export interface ForecastData {
@@ -58,41 +61,19 @@ const App: React.FC = () => {
 
   const loadInitialData = async () => {
     try {
-      const rawPredictions = await databaseService.getAllPredictions();
-
-      const migratedPredictions = rawPredictions.map((p: any): Prediction => {
-        // If sensorData property doesn't exist, it's an old record
-        if (!p.sensorData) {
-          return {
-            id: p.id,
-            timestamp: p.timestamp,
-            premiseIndex: p.premiseIndex,
-            riskLevel: p.riskLevel,
-            confidence: p.confidence,
-            sensorData: {
-              rainfall: p.rainfall,
-              temperature: p.temperature,
-              waterContent: p.waterContent,
-              rainfall7dAvg: p.rainfall7dAvg || 0, // Default to 0 if missing
-              waterContent7dAvg: p.waterContent7dAvg || 0, // Default to 0 if missing
-            }
-          };
-        }
-        return p as Prediction;
-      });
-
-      setPredictions(migratedPredictions);
+      const allPredictions = await databaseService.getAllPredictions();
+      setPredictions(allPredictions);
 
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-      const filtered = migratedPredictions.filter(prediction => {
+      const filtered = allPredictions.filter(prediction => {
         const predictionDate = new Date(prediction.timestamp);
         return predictionDate >= thirtyDaysAgo;
       });
 
       setDisplayPredictions(filtered);
-      console.log(`Loaded and migrated ${migratedPredictions.length} predictions from Firebase`);
+      console.log(`Loaded ${allPredictions.length} predictions from Firebase`);
     } catch (error) {
       console.error('Error loading initial data:', error);
     }
@@ -113,17 +94,21 @@ const App: React.FC = () => {
     setIsSavingToDb(true);
     
     try {
-      // API call is now simpler as the data object is complete
+      // Try to get prediction from backend
       const apiResult = await apiService.getPrediction(data);
       
-      // Create the new prediction object with the nested sensor data
+      // Convert API response to Prediction format
       const prediction: Prediction = {
         id: Date.now().toString(),
         timestamp: new Date().toLocaleString(),
         premiseIndex: parseFloat(apiResult.premiseIndex.toFixed(2)),
+        rainfall: parseFloat(data.rainfall.toFixed(2)),
+        temperature: parseFloat(data.temperature.toFixed(2)),
+        waterContent: parseFloat(data.waterContent.toFixed(2)),
+        rainfall7dAvg: data.rainfall7dAvg ? parseFloat(data.rainfall7dAvg.toFixed(2)) : undefined,
+        waterContent7dAvg: data.waterContent7dAvg ? parseFloat(data.waterContent7dAvg.toFixed(2)) : undefined,
         riskLevel: apiResult.riskLevel,
-        confidence: parseFloat((apiResult.confidence || 0).toFixed(2)),
-        sensorData: data
+        confidence: parseFloat((apiResult.confidence || 0).toFixed(2))
       };
       
       setCurrentPrediction(prediction);
@@ -169,9 +154,23 @@ const App: React.FC = () => {
   };
 
   const calculateFallbackPrediction = (data: SensorData): Prediction => {
-    // This fallback logic can be simplified as it doesn't need to be perfect
-    const fallbackIndex = (data.rainfall / 10) + (data.temperature - 25) + (data.waterContent / 5);
-    const finalIndex = Math.max(0, Math.min(100, fallbackIndex + (Math.random() - 0.5) * 10));
+    // Fallback calculation when backend is unavailable
+    const rainfallWeight = 0.4;
+    const temperatureWeight = 0.35;
+    const waterContentWeight = 0.25;
+
+    const normalizedRainfall = Math.min(data.rainfall / 200 * 100, 100);
+    const normalizedTemp = Math.min((data.temperature - 20) / 15 * 100, 100);
+    const normalizedWater = Math.min(data.waterContent, 100);
+
+    const premiseIndex = (
+      normalizedRainfall * rainfallWeight +
+      normalizedTemp * temperatureWeight +
+      normalizedWater * waterContentWeight
+    );
+
+    const variation = (Math.random() - 0.5) * 20;
+    const finalIndex = Math.max(0, Math.min(100, premiseIndex + variation));
 
     const getRiskLevel = (index: number): 'low' | 'medium' | 'high' => {
       if (index < 30) return 'low';
@@ -183,9 +182,13 @@ const App: React.FC = () => {
       id: Date.now().toString(),
       timestamp: new Date().toLocaleString(),
       premiseIndex: parseFloat(finalIndex.toFixed(2)),
+      rainfall: parseFloat(data.rainfall.toFixed(2)),
+      temperature: parseFloat(data.temperature.toFixed(2)),
+      waterContent: parseFloat(data.waterContent.toFixed(2)),
+      rainfall7dAvg: data.rainfall7dAvg ? parseFloat(data.rainfall7dAvg.toFixed(2)) : undefined,
+      waterContent7dAvg: data.waterContent7dAvg ? parseFloat(data.waterContent7dAvg.toFixed(2)) : undefined,
       riskLevel: getRiskLevel(finalIndex),
-      confidence: 0.50, // Lower confidence for fallback
-      sensorData: data
+      confidence: 0.60 // Lower confidence for fallback
     };
   };
 
@@ -357,7 +360,7 @@ const App: React.FC = () => {
             <h3 className="text-lg font-semibold text-gray-800">Avg Temperature</h3>
             <p className="text-3xl font-bold text-orange-600">
               {displayPredictions.length > 0 
-                ? `${(displayPredictions.reduce((acc, p) => acc + p.sensorData.temperature, 0) / displayPredictions.length).toFixed(2)}°C`
+                ? `${(displayPredictions.reduce((acc, p) => acc + p.temperature, 0) / displayPredictions.length).toFixed(2)}°C`
                 : '0.00°C'
               }
             </p>
@@ -368,7 +371,7 @@ const App: React.FC = () => {
             <h3 className="text-lg font-semibold text-gray-800">Avg Rainfall</h3>
             <p className="text-3xl font-bold text-cyan-600">
               {displayPredictions.length > 0 
-                ? `${(displayPredictions.reduce((acc, p) => acc + p.sensorData.rainfall, 0) / displayPredictions.length).toFixed(2)}mm`
+                ? `${(displayPredictions.reduce((acc, p) => acc + p.rainfall, 0) / displayPredictions.length).toFixed(2)}mm`
                 : '0.00mm'
               }
             </p>
