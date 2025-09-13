@@ -11,12 +11,17 @@ class DatabaseService {
 
   async savePrediction(prediction: Prediction): Promise<void> {
     try {
-      const predictionData = {
-        ...prediction,
-        createdAt: Timestamp.now(),
+      const predictionData: PredictionRecord = {
+        timestamp: prediction.timestamp,
+        premiseIndex: prediction.premiseIndex,
+        rainfall: prediction.rainfall,
+        temperature: prediction.temperature,
+        waterContent: prediction.waterContent,
+        riskLevel: prediction.riskLevel,
+        confidence: prediction.confidence || 0,
+        createdAt: Timestamp.now()
       };
-      // The 'id' property from the Prediction object will be ignored by Firestore's addDoc,
-      // which is the desired behavior as Firestore generates its own ID.
+
       await addDoc(collection(db, this.collectionName), predictionData);
       console.log('Prediction saved to Firebase');
     } catch (error) {
@@ -30,17 +35,17 @@ class DatabaseService {
       const q = query(collection(db, this.collectionName), orderBy('createdAt', 'desc'));
       const querySnapshot = await getDocs(q);
       
-      return querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          timestamp: data.timestamp,
-          premiseIndex: data.premiseIndex,
-          riskLevel: data.riskLevel,
-          confidence: data.confidence,
-          sensorData: data.sensorData
-        } as Prediction;
-      });
+      return querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        timestamp: doc.data().timestamp,
+        premiseIndex: doc.data().premiseIndex,
+        rainfall: doc.data().rainfall,
+        temperature: doc.data().temperature,
+        waterContent: doc.data().waterContent,
+        riskLevel: doc.data().riskLevel,
+        confidence: doc.data().confidence,
+        createdAt: doc.data().createdAt?.toDate()
+      })) as Prediction[];
     } catch (error) {
       console.error('Error fetching predictions:', error);
       throw error;
@@ -61,17 +66,17 @@ class DatabaseService {
       
       const querySnapshot = await getDocs(q);
       
-      return querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          timestamp: data.timestamp,
-          premiseIndex: data.premiseIndex,
-          riskLevel: data.riskLevel,
-          confidence: data.confidence,
-          sensorData: data.sensorData
-        } as Prediction;
-      });
+      return querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        timestamp: doc.data().timestamp,
+        premiseIndex: doc.data().premiseIndex,
+        rainfall: doc.data().rainfall,
+        temperature: doc.data().temperature,
+        waterContent: doc.data().waterContent,
+        riskLevel: doc.data().riskLevel,
+        confidence: doc.data().confidence,
+        createdAt: doc.data().createdAt?.toDate?.() || new Date()
+      })) as Prediction[];
     } catch (error) {
       console.error('Error fetching 30-day predictions:', error);
       return []; // Return empty array instead of throwing error
@@ -108,14 +113,16 @@ class DatabaseService {
       }
 
       const doc = querySnapshot.docs[0];
-      const data = doc.data();
       return {
         id: doc.id,
-        timestamp: data.timestamp,
-        premiseIndex: data.premiseIndex,
-        riskLevel: data.riskLevel,
-        confidence: data.confidence,
-        sensorData: data.sensorData
+        timestamp: doc.data().timestamp,
+        premiseIndex: doc.data().premiseIndex,
+        rainfall: doc.data().rainfall,
+        temperature: doc.data().temperature,
+        waterContent: doc.data().waterContent,
+        riskLevel: doc.data().riskLevel,
+        confidence: doc.data().confidence,
+        createdAt: doc.data().createdAt?.toDate?.() || new Date()
       } as Prediction;
     } catch (error) {
       console.error('Error fetching latest prediction:', error);
