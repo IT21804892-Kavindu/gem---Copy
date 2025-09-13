@@ -270,15 +270,8 @@ const SensorInput: React.FC<SensorInputProps> = ({ onSubmit, isLoading }) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (validateForm()) {
-      // Create a sanitized data object to ensure all values are numbers and not undefined.
-      const sanitizedData: SensorData = {
-        rainfall: Number(formData.rainfall || 0),
-        temperature: Number(formData.temperature || 0),
-        waterContent: Number(formData.waterContent || 0),
-        rainfall7dAvg: Number(formData.rainfall7dAvg || 0),
-        waterContent7dAvg: Number(formData.waterContent7dAvg || 0),
-      };
-      onSubmit(sanitizedData);
+      // Always submit the full formData object
+      onSubmit(formData);
     }
   };
 
